@@ -12,91 +12,186 @@
 const byte ledCount = 88;
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(ledCount, PIN, NEO_GRB + NEO_KHZ800);
 
+const byte btnRainbow = 0;
+const byte btnStorm = 1;
+
 void setup() {
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
-  pinMode(0, INPUT);
-  pinMode(1, INPUT);
-}
-
-void loopb()
-{
-  setAllColor(0, 0, 255);
-  delay(random(500,5000));
-  for(int i = 0;i<128;i++)
-    flicker(240, 128);
-  colorWipe(strip.Color(0, 0, 255), 1); // Blue
+  pinMode(btnRainbow, INPUT);
+  pinMode(btnStorm, INPUT);
+  
+  Serial.begin(9600);
 }
 
 void loop()
 {
-  sunset(0);
-  sunset(15);
-  sunset(30);
+//  sunset(0);
+//  sunset(15);
+//  sunset(30);
+  sunrise(45);
+  softDelay(5000);
+  storm(40, 1, 128); // daystorm
+//  storm(210, 64, 255); // daystorm
+  rainbowLoop(250);
+
   sunset(45);
-  sunset(45);
+  softDelay(5000);
+  storm(244, 255, 20);  // nightstorm
+  softDelay(5000);
+}
+
+void storm(int h, int s, int v)
+{
+  Serial.print("in storm");
+  for (int i = 0;i<20;i++)
+  {
+    setAllHSV(h,s,v);
+    strip.show();
+    delay(random(500,5000));
+    for(int i = 0;i<128;i++)
+    {
+      flicker(240, 128);
+      strip.show();
+    }
+  }
+}
+
+void softDelay(int duration)
+{
+  for(int i = 0;i<duration;i++)
+  {
+    checkForEvent();
+    delay(1);
+  }
+  
+}
+
+void checkForEvent()
+{
+  static boolean modeRainbow = false;
+  static boolean modeStorm = false;
+  // Some example procedures showing how to display to the pixels:
+  if (digitalRead(btnRainbow) == HIGH)
+  {
+    //Serial.println("in modeRainbow");
+    modeRainbow = !modeRainbow;
+  } 
+  if (digitalRead(btnStorm) == HIGH)
+  {
+    //Serial.println("in modeStorm");
+    modeStorm = !modeStorm;
+  }
+  if (modeStorm)
+  {
+    storm(244, 255, 20);  // nightstorm
+    modeStorm = !modeStorm;
+  }
+   
+  if (modeRainbow)
+  {
+    rainbowLoop(250);      
+    modeRainbow = !modeRainbow;
+  }
 }
 
 void sunset(int  hue)
 {
-  const byte delayTime = 20;
+  //Serial.print("sunset ");Serial.println(hue);
+  const byte delayTime = 15;
   for(int i = 0;i<=255;i++)
   {
+    if (i % 5 == 0)
+      hue = sunsetHue(hue);
+    //Serial.print("HSVt ");Serial.print(hue);Serial.print(" ");Serial.print(i);Serial.print(" ");Serial.print(128);Serial.println();
+
     setAllHSV(hue, i, 128);
-    delay(delayTime);
+    strip.show();
+    softDelay(delayTime);
   }
-  for(int i = 128;i>=0;i--)
+  for(int i = 128;i>=20;i--)
   {
+    if (i % 1 == 0)
+      hue = sunsetHue(hue);
+    //Serial.print("HSVt ");Serial.print(hue);Serial.print(" ");Serial.print(255);Serial.print(" ");Serial.print(i);Serial.println();
     setAllHSV(hue, 255, i);
-    delay(delayTime);
+    strip.show();
+    softDelay(delayTime);
   }
 }
 
+void sunrise(int  hue)
+{
+  //Serial.print("sunsrise ");Serial.println(hue);
+  const byte delayTime = 15;
+  for(int i = 20;i<=128;i++)
+  {
+    if (i % 1 == 0)
+      hue = sunriseHue(hue);
+    //Serial.print("HSVt ");Serial.print(hue);Serial.print(" ");Serial.print(255);Serial.print(" ");Serial.print(i);Serial.println();
+    setAllHSV(hue, 255, i);
+    strip.show();
+    softDelay(delayTime);
+  }
+  for(int i = 255;i>=0;i--)
+  {
+    if (i % 5 == 0)
+      hue = sunriseHue(hue);
+    //Serial.print("HSVt ");Serial.print(hue);Serial.print(" ");Serial.print(i);Serial.print(" ");Serial.print(128);Serial.println();
+
+    setAllHSV(hue, i, 128);
+    strip.show();
+    softDelay(delayTime);
+  }
+}
+
+
 int sunsetHue(int myHue)
 {
-  myHue--;
   if (myHue == 0)
   {
     myHue = 360;
   }
   
-  if (myHue = 255)
+  if (myHue == 240)
   {
     myHue = 45;
   }
+  myHue--;
+  return myHue;
+}
+
+int sunriseHue(int myHue)
+{
+  if (myHue == 360)
+  {
+    myHue = 0;
+  }
+  
+  if (myHue == 45)
+  {
+    myHue = 240;
+  }
+  myHue++;
   return myHue;
 }
 
 
-void looped() {
-  static boolean mode = false;
-  static boolean modeLightning = false;
-  // Some example procedures showing how to display to the pixels:
-  if (digitalRead(0) == HIGH)
-    mode = !mode;
-    
-  if (digitalRead(1) == HIGH)
-    modeLightning = !modeLightning;
-
-    if (modeLightning)
-    {
-      rainbow(5);
-      modeLightning = !modeLightning;
-    }
-     
-  if (mode)
-    colorWipe(strip.Color(0, 0, 255), 1); // Blue
-  else
+void rainbowLoop(int idelay) {              //-m3-LOOP HSV RAINBOW
+  static int hue = 0;
+  for (int i = 0;i<idelay;i++)
   {
+    for (int pixel = 0;pixel < ledCount;pixel++)
     {
-      colorWipe(strip.Color(255, 0, 0), 1); // Red
-    }
+      hue += 360/ledCount;
+      if (hue > 360)
+        hue = 0;    
+      setHSV(pixel, hue, 255, 255);
+    } 
+    strip.show();
+    softDelay(20);
+    hue++;
   }
-  
-  
-//  colorWipe(strip.Color(0, 255, 0), 50); // Green
-//  rainbow(20);
-//  rainbowCycle(20);
 }
 
 void setAllColor(byte r, byte g, byte b)
@@ -113,7 +208,6 @@ void setAllHSV(unsigned int  h, byte  s, byte  v)
   {
     setHSV(i, h, s, v);
   }
-  strip.show();
 }
 
 void flicker(int thishue, int thissat) {            //-m9-FLICKER EFFECT
@@ -121,11 +215,10 @@ void flicker(int thishue, int thissat) {            //-m9-FLICKER EFFECT
   int random_delay = random(10,100);
   int random_bool = random(0,random_bright);
   if (random_bool < 10) {
+    delay(random_delay);
     for(int i = 0 ; i < ledCount; i++ ) {
       setHSV(i, thishue, thissat, random_bright); 
     }
-    strip.show();    
-    delay(random_delay);
   }
 }
 
@@ -183,7 +276,7 @@ void colorWipe(uint32_t c, uint8_t wait) {
   for(uint16_t i=0; i<strip.numPixels(); i++) {
       strip.setPixelColor(i, c);
       strip.show();
-      delay(wait);
+      softDelay(wait);
   }
 }
 
@@ -208,7 +301,7 @@ void rainbowCycle(uint8_t wait) {
       strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
     }
     strip.show();
-    delay(wait);
+    softDelay(wait);
   }
 }
 
