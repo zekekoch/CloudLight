@@ -9,15 +9,20 @@
 //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-const byte ledCount = 88;
+#define ledCount 88
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(ledCount, PIN, NEO_GRB + NEO_KHZ800);
+
+enum mode {modeSunrise, modeSunset, modeDayStorm, modeNightStorm, modeRainbow};
+mode currentMode = modeDayStorm;
 
 #ifndef __AVR_ATtiny85__
   const byte btnRainbow = 6;
-  const byte btnStorm = 7;
-#elif
+  const byte btnChangeDay = 7;
+#endif
+
+#ifdef  __AVR_ATtiny85__
   const byte btnRainbow = 0;
-  const byte btnStorm = 1;  
+  const byte btnChangeDay = 1;  
 #endif  
 
 void println(String s = "")
@@ -45,117 +50,120 @@ void setup() {
   strip.begin();
   strip.show(); // Initialize all pixels to 'off'
   pinMode(btnRainbow, INPUT);
-  pinMode(btnStorm, INPUT);
+  pinMode(btnChangeDay, INPUT);
   
-  #ifndef __AVR_ATtiny85__
-  Serial.begin(9600);
-  #endif
+  //Serial.begin(9600);
 }
 
 void loop()
 {
-
-  // this is my basic pattern
-  sunrise(45);
-  softDelay(5000);
-  storm(40, 1, 128); // daystorm
-//  storm(210, 64, 255); // daystorm
-  rainbowLoop(250);
-
-  sunset(45);
-  softDelay(5000);
-  storm(244, 255, 20);  // nightstorm
-  softDelay(5000);
+  switch(currentMode)
+  {
+    case modeSunrise:
+      sunrise();
+      break;
+    case modeSunset:
+      sunset();
+      break;
+    case modeDayStorm:
+      storm(); // daystorm
+      break;
+    case modeNightStorm:
+      storm(); // daystorm
+      break;
+    case modeRainbow:
+      rainbowLoop();
+      break;
+    default:
+      break;
+  }
+  
+  checkForEvent();
 }
 
-
-void storm(int h, int s, int v)
+void storm()
 {
-  println(("in storm"));
-  for (int i = 0;i<20;i++)
+  //println(("in storm"));
+
+  static int stormCount = 0;
+  static bool inLightning = false;
+  
+  if (stormCount == 10)
   {
-    setAllHSV(h,s,v);
-    strip.show();
-    softDelay(random(500,5000));
+    // rainbows only happen in the day
+    if (currentMode == modeNightStorm)
+      currentMode = modeSunrise;
+    else
+      currentMode = modeRainbow;
+    stormCount=0;
+  }
+  
+  if (currentMode == modeDayStorm)
+    setAllHSV(40, 1, 128); // daystorm
+  else
+    setAllHSV(244, 255, 20);  // nightstorm
+
+  strip.show();
+  
+  if (random(500) == 0)
+  {
+    inLightning = true;
+    stormCount++;
+  }
+  
+  if (inLightning)
+  {
     for(int i = 0;i<128;i++)
     {
       flicker(240, 128);
       strip.show();
     }
+    inLightning = false;
   }
 }
 
-void softDelay(int duration)
+void checkForEvent()
 {
-  for(int i = 0;i<duration;i++)
-  {
-    delay(1);
-    if (checkForEvent()) break;
-  }
-}
-
-bool checkForEvent()
-{
-  static boolean modeRainbow = false;
-  static boolean modeStorm = false;
-
-  static bool mutex = false;
-
-  if (mutex == true)
-    return true;
-
-
   //print(btnRainbow);print(" ");print(digitalRead(btnRainbow));print(" ");print(digitalRead(btnStorm));println();
   
   if (digitalRead(btnRainbow) == HIGH)
   {
-    println("btn high in modeRainbow");
-    modeRainbow = !modeRainbow;
-    modeStorm = false;
+    //println("btn high in modeRainbow");
+    currentMode = modeRainbow;
   } 
-  if (digitalRead(btnStorm) == HIGH)
+  if (digitalRead(btnChangeDay) == HIGH)
   {
-    println("btn high in modeStorm");
-    modeStorm = !modeStorm;
-    modeRainbow = false;
-  }
-  
-  if (modeStorm)
-  {
-    println("->modeStorm");
-    mutex = true;
-    storm(244, 255, 20);  // nightstorm
-    mutex = false;
-    println("<-modeStorm");
-    modeStorm = !modeStorm;
-  }
-   
-  if (modeRainbow)
-  {
-    println("->modeRainbow");
-    mutex = true;
-    rainbowLoop(250);      
-    mutex = false;
-    println("<-modeRainbow");
-    modeRainbow = !modeRainbow;
-  }
-  
-  return false;
+    //println("btn high in modeStorm");
+    switch(currentMode)
+    {
+
+      case modeRainbow:
+      case modeDayStorm:
+        currentMode = modeSunset;
+        break;
+      case modeNightStorm:
+        currentMode = modeSunrise;
+        break;
+      default:
+        break;
+    }      
+  }  
 }
 
-void sunset(int  hue)
+void sunset()
 {
-  print("sunset ");print(hue);println();
+  int hue = 45;
+  //print("sunset ");print(hue);println();
   const byte delayTime = 15;
   for(int i = 0;i<=255;i++)
   {
     if (i % 5 == 0)
       hue = sunsetHue(hue);
-    print("HSVt ");print(hue);print(" ");print(i);print(" ");print(128);println();
+    //print("HSVt ");print(hue);print(" ");print(i);print(" ");print(128);println();
 
     setAllHSV(hue, i, 128);
     strip.show();
-    softDelay(delayTime);
+    delay(delayTime);
   }
   for(int i = 128;i>=20;i--)
   {
@@ -164,13 +172,16 @@ void sunset(int  hue)
     //Serial.print("HSVt ");Serial.print(hue);Serial.print(" ");Serial.print(255);Serial.print(" ");Serial.print(i);Serial.println();
     setAllHSV(hue, 255, i);
     strip.show();
-    softDelay(delayTime);
+    delay(delayTime);
   }
+  
+  currentMode = modeNightStorm;
 }
 
-void sunrise(int  hue)
+void sunrise()
 {
-  print("begin sunrise ");print(hue);println();
+  int hue = 45;
+  //print("begin sunrise ");print(hue);println();
   const byte delayTime = 15;
   for(int i = 20;i<=128;i++)
   {
@@ -179,7 +190,7 @@ void sunrise(int  hue)
     //Serial.print("HSVt ");Serial.print(hue);Serial.print(" ");Serial.print(255);Serial.print(" ");Serial.print(i);Serial.println();
     setAllHSV(hue, 255, i);
     strip.show();
-    softDelay(delayTime);
+    delay(delayTime);
   }
   for(int i = 255;i>=0;i--)
   {
@@ -189,9 +200,11 @@ void sunrise(int  hue)
 
     setAllHSV(hue, i, 128);
     strip.show();
-    softDelay(delayTime);
+    delay(delayTime);
   }
-  print("end sunrise ");print(hue);println();
+  //print("end sunrise ");print(hue);println();
+  
+  currentMode = modeDayStorm;
 }
 
 
@@ -225,22 +238,24 @@ int sunriseHue(int myHue)
   return myHue;
 }
 
-
-void rainbowLoop(int idelay) {              //-m3-LOOP HSV RAINBOW
+void rainbowLoop() {              //-m3-LOOP HSV RAINBOW
   static int hue = 0;
-  for (int i = 0;i<idelay;i++)
+  static byte currentFrame = 0;
+  currentFrame++;
+  //print(currentFrame);println();
+  
+  for (int pixel = 0;pixel < ledCount;pixel++)
   {
-    for (int pixel = 0;pixel < ledCount;pixel++)
-    {
-      hue += 360/ledCount;
-      if (hue > 360)
-        hue = 0;    
-      setHSV(pixel, hue, 255, 255);
-    } 
-    strip.show();
-    softDelay(20);
-    hue++;
-  }
+    hue += 360/ledCount;
+    if (hue > 360)
+      hue = 0;    
+    setHSV(pixel, hue, 255, 255);
+  } 
+  strip.show();
+  delay(10);
+  hue++;
+  if(currentFrame == 255)
+    currentMode = modeDayStorm;
 }
 
 void setAllColor(byte r, byte g, byte b)
@@ -264,7 +279,7 @@ void flicker(int thishue, int thissat) {            //-m9-FLICKER EFFECT
   int random_delay = random(10,100);
   int random_bool = random(0,random_bright);
   if (random_bool < 10) {
-    softDelay(random_delay);
+    delay(random_delay);
     for(int i = 0 ; i < ledCount; i++ ) {
       setHSV(i, thishue, thissat, random_bright); 
     }
@@ -325,7 +340,7 @@ void colorWipe(uint32_t c, uint8_t wait) {
   for(uint16_t i=0; i<strip.numPixels(); i++) {
       strip.setPixelColor(i, c);
       strip.show();
-      softDelay(wait);
+      delay(wait);
   }
 }
 
@@ -337,7 +352,7 @@ void rainbow(uint8_t wait) {
       strip.setPixelColor(i, Wheel((i+j) & 255));
     }
     strip.show();
-    softDelay(wait);
+    delay(wait);
   }
 }
 
@@ -350,7 +365,7 @@ void rainbowCycle(uint8_t wait) {
       strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
     }
     strip.show();
-    softDelay(wait);
+    delay(wait);
   }
 }
 
