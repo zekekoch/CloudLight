@@ -12,8 +12,34 @@
 const byte ledCount = 88;
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(ledCount, PIN, NEO_GRB + NEO_KHZ800);
 
-const byte btnRainbow = 0;
-const byte btnStorm = 1;
+#ifndef __AVR_ATtiny85__
+  const byte btnRainbow = 6;
+  const byte btnStorm = 7;
+#elif
+  const byte btnRainbow = 0;
+  const byte btnStorm = 1;  
+#endif  
+
+void println(String s = "")
+{
+  #ifndef __AVR_ATtiny85__
+  Serial.println(s);
+  #endif  
+}
+
+void print(int s)
+{
+  #ifndef __AVR_ATtiny85__
+  Serial.print(String(s));
+  #endif
+}
+void print(String s)
+{
+  #ifndef __AVR_ATtiny85__
+  Serial.print(s);
+  #endif  
+}
+
 
 void setup() {
   strip.begin();
@@ -21,14 +47,15 @@ void setup() {
   pinMode(btnRainbow, INPUT);
   pinMode(btnStorm, INPUT);
   
+  #ifndef __AVR_ATtiny85__
   Serial.begin(9600);
+  #endif
 }
 
 void loop()
 {
-//  sunset(0);
-//  sunset(15);
-//  sunset(30);
+
+  // this is my basic pattern
   sunrise(45);
   softDelay(5000);
   storm(40, 1, 128); // daystorm
@@ -41,14 +68,15 @@ void loop()
   softDelay(5000);
 }
 
+
 void storm(int h, int s, int v)
 {
-  Serial.print("in storm");
+  println(("in storm"));
   for (int i = 0;i<20;i++)
   {
     setAllHSV(h,s,v);
     strip.show();
-    delay(random(500,5000));
+    softDelay(random(500,5000));
     for(int i = 0;i<128;i++)
     {
       flicker(240, 128);
@@ -61,49 +89,69 @@ void softDelay(int duration)
 {
   for(int i = 0;i<duration;i++)
   {
-    checkForEvent();
     delay(1);
+    if (checkForEvent()) break;
   }
-  
 }
 
-void checkForEvent()
+bool checkForEvent()
 {
   static boolean modeRainbow = false;
   static boolean modeStorm = false;
-  // Some example procedures showing how to display to the pixels:
+
+  static bool mutex = false;
+
+  if (mutex == true)
+    return true;
+
+
+  //print(btnRainbow);print(" ");print(digitalRead(btnRainbow));print(" ");print(digitalRead(btnStorm));println();
+  
   if (digitalRead(btnRainbow) == HIGH)
   {
-    //Serial.println("in modeRainbow");
+    println("btn high in modeRainbow");
     modeRainbow = !modeRainbow;
+    modeStorm = false;
   } 
   if (digitalRead(btnStorm) == HIGH)
   {
-    //Serial.println("in modeStorm");
+    println("btn high in modeStorm");
     modeStorm = !modeStorm;
+    modeRainbow = false;
   }
+  
   if (modeStorm)
   {
+    println("->modeStorm");
+    mutex = true;
     storm(244, 255, 20);  // nightstorm
+    mutex = false;
+    println("<-modeStorm");
     modeStorm = !modeStorm;
   }
    
   if (modeRainbow)
   {
+    println("->modeRainbow");
+    mutex = true;
     rainbowLoop(250);      
+    mutex = false;
+    println("<-modeRainbow");
     modeRainbow = !modeRainbow;
   }
+  
+  return false;
 }
 
 void sunset(int  hue)
 {
-  //Serial.print("sunset ");Serial.println(hue);
+  print("sunset ");print(hue);println();
   const byte delayTime = 15;
   for(int i = 0;i<=255;i++)
   {
     if (i % 5 == 0)
       hue = sunsetHue(hue);
-    //Serial.print("HSVt ");Serial.print(hue);Serial.print(" ");Serial.print(i);Serial.print(" ");Serial.print(128);Serial.println();
+    print("HSVt ");print(hue);print(" ");print(i);print(" ");print(128);println();
 
     setAllHSV(hue, i, 128);
     strip.show();
@@ -122,7 +170,7 @@ void sunset(int  hue)
 
 void sunrise(int  hue)
 {
-  //Serial.print("sunsrise ");Serial.println(hue);
+  print("begin sunrise ");print(hue);println();
   const byte delayTime = 15;
   for(int i = 20;i<=128;i++)
   {
@@ -143,6 +191,7 @@ void sunrise(int  hue)
     strip.show();
     softDelay(delayTime);
   }
+  print("end sunrise ");print(hue);println();
 }
 
 
@@ -215,7 +264,7 @@ void flicker(int thishue, int thissat) {            //-m9-FLICKER EFFECT
   int random_delay = random(10,100);
   int random_bool = random(0,random_bright);
   if (random_bool < 10) {
-    delay(random_delay);
+    softDelay(random_delay);
     for(int i = 0 ; i < ledCount; i++ ) {
       setHSV(i, thishue, thissat, random_bright); 
     }
@@ -288,7 +337,7 @@ void rainbow(uint8_t wait) {
       strip.setPixelColor(i, Wheel((i+j) & 255));
     }
     strip.show();
-    delay(wait);
+    softDelay(wait);
   }
 }
 
@@ -317,5 +366,4 @@ uint32_t Wheel(byte WheelPos) {
    WheelPos -= 170;
    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
   }
-}
-
+} 
