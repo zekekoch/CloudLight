@@ -136,7 +136,6 @@ void checkForEvent()
     //println("btn high in modeStorm");
     switch(currentMode)
     {
-
       case modeRainbow:
       case modeDayStorm:
         currentMode = modeSunset;
@@ -252,10 +251,12 @@ void rainbowLoop() {              //-m3-LOOP HSV RAINBOW
     setHSV(pixel, hue, 255, 255);
   } 
   strip.show();
-  delay(10);
+  delay(15);
   hue++;
   if(currentFrame == 255)
-    currentMode = modeDayStorm;
+  {
+    currentMode = modeSunset;
+  }
 }
 
 void setAllColor(byte r, byte g, byte b)
