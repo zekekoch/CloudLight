@@ -9,8 +9,8 @@
 //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-#define ledCount 104
-#define rowCount 13
+#define ledCount 112
+#define rowCount 14
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(ledCount, PIN, NEO_GRB + NEO_KHZ800);
 
 enum mode {modeSunrise, modeSunset, modeDay, modeNight, modeDayStorm, modeNightStorm, modeRainbow, modeRaindrop};
@@ -84,7 +84,6 @@ void loop()
       break;
     case modeRaindrop:
       animateRain();
-      //rainDrop(13,25,false);
       break;
     default:
       break;
@@ -96,7 +95,7 @@ void loop()
 
 // there are 8 leds strip so I'm using a byte with 
 // one bit to represent each column and then I have
-// 13 of them since each strip is 13 pixels long
+// 14 of them since each strip is 14 pixels long
 //
 // in seedDrops I am randomly starting raindrops
 // by setting the first bit true in some of the strips.
@@ -142,19 +141,35 @@ void animateRain()
   {
     for(int iColumn = 0;iColumn < 8;iColumn++)
     {
-      byte currentPixel = iRow +  iColumn * 13;
-      //print("[");print(iRow);print(".");print(iColumn);print("->");print(iRow * 8 +  iColumn);println();
-      
-      if (bitRead(rain[iRow], iColumn))
-        setHSV(currentPixel, 0, 0, 255/((iColumn*3)+1));
-      else
-        strip.setPixelColor(currentPixel, 0, 0, 0);
+      byte currentPixel;
+      // if it's an odd column we're dripping down
+      if (iColumn % 2 == 1)
+      {
+        currentPixel = iRow +  iColumn * rowCount;
+        if (bitRead(rain[iRow], iColumn))
+        {
+          setHSV(currentPixel, 0, 0, 255);
+          //setHSV(currentPixel, 0, 0, 255/((iColumn*3)+1));
+        }
+        else
+          strip.setPixelColor(currentPixel, 0, 0, 0);
+        //print("[");print(iRow);print(".");print(iColumn);print("->");print(iRow * 8 +  iColumn);println();
+      }
+      else // we're dripping up
+      {
+        currentPixel = iRow +  iColumn * rowCount;
+        if (bitRead(rain[rowCount-1-iRow], iColumn))
+          setHSV(currentPixel, 0, 0, 255);
+        else
+          strip.setPixelColor(currentPixel, 0, 0, 0);
+      }
     }
   }
   strip.show();
   delay(50);
 }
 
+/*
 void printRainState()
 {
   for(int iRow = 0;iRow<rowCount;iRow++)
@@ -167,6 +182,7 @@ void printRainState()
   }
   Serial.println();
 }
+*/
 
 void calm(bool isDay)
 {
