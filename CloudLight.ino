@@ -12,8 +12,8 @@
 #define ledCount 88
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(ledCount, PIN, NEO_GRB + NEO_KHZ800);
 
-enum mode {modeSunrise, modeSunset, modeDayStorm, modeNightStorm, modeRainbow};
-mode currentMode = modeDayStorm;
+enum mode {modeSunrise, modeSunset, modeDay, modeNight, modeDayStorm, modeNightStorm, modeRainbow};
+mode currentMode = modeDay;
 
 #ifndef __AVR_ATtiny85__
   const byte btnRainbow = 6;
@@ -25,6 +25,7 @@ mode currentMode = modeDayStorm;
   const byte btnChangeDay = 1;  
 #endif  
 
+/*
 void println(String s = "")
 {
   #ifndef __AVR_ATtiny85__
@@ -44,7 +45,7 @@ void print(String s)
   Serial.print(s);
   #endif  
 }
-
+*/
 
 void setup() {
   strip.begin();
@@ -65,6 +66,12 @@ void loop()
     case modeSunset:
       sunset();
       break;
+    case modeDay:
+      calm(true);
+      break;
+    case modeNight:
+      calm(false);
+      break;
     case modeDayStorm:
       storm(); // daystorm
       break;
@@ -81,6 +88,30 @@ void loop()
   checkForEvent();
 }
 
+void calm(bool isDay)
+{
+  static int frameCount = 0;
+  if (frameCount == 0)
+  {
+    if (isDay)
+      setAllHSV(40, 1, 128); // daystorm
+    else
+      setAllHSV(244, 255, 20);  // night  
+    strip.show();
+  }
+  
+  if (frameCount == 512)
+  {
+    if (isDay)
+      currentMode = modeSunset;
+    else
+      currentMode = modeSunrise;
+    frameCount = 0;
+  }
+  delay(15);
+  frameCount++;
+}
+
 void storm()
 {
   //println(("in storm"));
@@ -92,7 +123,7 @@ void storm()
   {
     // rainbows only happen in the day
     if (currentMode == modeNightStorm)
-      currentMode = modeSunrise;
+      currentMode = modeNight;
     else
       currentMode = modeRainbow;
     stormCount=0;
@@ -153,7 +184,7 @@ void sunset()
 {
   int hue = 45;
   //print("sunset ");print(hue);println();
-  const byte delayTime = 15;
+  const byte delayTime = 30;
   for(int i = 0;i<=255;i++)
   {
     if (i % 5 == 0)
@@ -181,7 +212,7 @@ void sunrise()
 {
   int hue = 45;
   //print("begin sunrise ");print(hue);println();
-  const byte delayTime = 15;
+  const byte delayTime = 30;
   for(int i = 20;i<=128;i++)
   {
     if (i % 1 == 0)
@@ -239,7 +270,7 @@ int sunriseHue(int myHue)
 
 void rainbowLoop() {              //-m3-LOOP HSV RAINBOW
   static int hue = 0;
-  static byte currentFrame = 0;
+  static int currentFrame = 0;
   currentFrame++;
   //print(currentFrame);println();
   
@@ -253,9 +284,9 @@ void rainbowLoop() {              //-m3-LOOP HSV RAINBOW
   strip.show();
   delay(15);
   hue++;
-  if(currentFrame == 255)
+  if(currentFrame == 1024)
   {
-    currentMode = modeSunset;
+    currentMode = modeDay;
   }
 }
 
