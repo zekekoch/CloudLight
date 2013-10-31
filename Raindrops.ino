@@ -9,11 +9,14 @@
 //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-#define ledCount 88
+#define ledCount 104
+#define rowCount 13
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(ledCount, PIN, NEO_GRB + NEO_KHZ800);
 
-enum mode {modeSunrise, modeSunset, modeDay, modeNight, modeDayStorm, modeNightStorm, modeRainbow};
-mode currentMode = modeDay;
+enum mode {modeSunrise, modeSunset, modeDay, modeNight, modeDayStorm, modeNightStorm, modeRainbow, modeRaindrop};
+mode currentMode = modeRaindrop;
+
+byte rain[rowCount] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 #ifndef __AVR_ATtiny85__
   const byte btnRainbow = 6;
@@ -25,7 +28,6 @@ mode currentMode = modeDay;
   const byte btnChangeDay = 1;  
 #endif  
 
-/*
 void println(String s = "")
 {
   #ifndef __AVR_ATtiny85__
@@ -45,7 +47,6 @@ void print(String s)
   Serial.print(s);
   #endif  
 }
-*/
 
 void setup() {
   strip.begin();
@@ -53,7 +54,7 @@ void setup() {
   pinMode(btnRainbow, INPUT);
   pinMode(btnChangeDay, INPUT);
   
-  //Serial.begin(9600);
+  Serial.begin(9600);
 }
 
 void loop()
@@ -81,11 +82,90 @@ void loop()
     case modeRainbow:
       rainbowLoop();
       break;
+    case modeRaindrop:
+      animateRain();
+      //rainDrop(13,25,false);
+      break;
     default:
       break;
   }
   
   checkForEvent();
+}
+
+
+// there are 8 leds strip so I'm using a byte with 
+// one bit to represent each column and then I have
+// 13 of them since each strip is 13 pixels long
+//
+// in seedDrops I am randomly starting raindrops
+// by setting the first bit true in some of the strips.
+void seedDrop()
+{
+  //print("seed drop ");println();
+  for(int iColumn = 0;iColumn<8;iColumn++)
+  {
+    if (random(0,8) == 0) 
+    {
+      //print("1");  
+      bitSet(rain[0], iColumn);
+    }
+    else
+    {
+      //print("0");
+      bitClear(rain[0], iColumn);
+    }
+  }
+  //println();
+}
+
+// for each frame I just copy the frame above onto it
+void advanceDrops()
+{
+  print("advance ");println();
+  // I need to copy starting at the bottom because 
+  // otherwise I end up writing over myself
+  for(int iRow = rowCount-1;iRow > 0;iRow--)
+  {
+    rain[iRow] = rain[iRow-1];
+  }
+}
+
+void animateRain()
+{
+  //print("animate");println();
+  advanceDrops();
+  seedDrop();
+  //printRainState();
+
+  for (int iRow = 0;iRow < rowCount;iRow++)  
+  {
+    for(int iColumn = 0;iColumn < 8;iColumn++)
+    {
+      byte currentPixel = iRow +  iColumn * 13;
+      //print("[");print(iRow);print(".");print(iColumn);print("->");print(iRow * 8 +  iColumn);println();
+      
+      if (bitRead(rain[iRow], iColumn))
+        setHSV(currentPixel, 0, 0, 255/((iColumn*3)+1));
+      else
+        strip.setPixelColor(currentPixel, 0, 0, 0);
+    }
+  }
+  strip.show();
+  delay(50);
+}
+
+void printRainState()
+{
+  for(int iRow = 0;iRow<rowCount;iRow++)
+  {
+    for(int iColumn = 0;iColumn < 8;iColumn++)
+    {
+      Serial.print(bitRead(rain[iRow],iColumn));
+    }
+    println();
+  }
+  Serial.println();
 }
 
 void calm(bool isDay)
