@@ -54,25 +54,31 @@ void setup() {
   pinMode(btnRainbow, INPUT);
   pinMode(btnChangeDay, INPUT);
   
-  Serial.begin(9600);
+//  Serial.begin(9600);
 }
 
 void loop()
 {
+
   switch(currentMode)
   {
+   
     case modeSunrise:
       sunrise();
       break;
+    
     case modeSunset:
       sunset();
       break;
+    
     case modeDay:
       calm(true);
       break;
+    
     case modeNight:
       calm(false);
       break;
+      
     case modeDayStorm:
       storm(); // daystorm
       break;
@@ -82,6 +88,7 @@ void loop()
     case modeRainbow:
       rainbowLoop();
       break;
+    
     case modeRaindrop:
       animateRain();
       break;
@@ -102,7 +109,7 @@ void loop()
 void seedDrop()
 {
   //print("seed drop ");println();
-  for(int iColumn = 0;iColumn<8;iColumn++)
+  for(byte iColumn = 0;iColumn<8;iColumn++)
   {
     if (random(0,8) == 0) 
     {
@@ -121,10 +128,10 @@ void seedDrop()
 // for each frame I just copy the frame above onto it
 void advanceDrops()
 {
-  print("advance ");println();
+  //print("advance ");println();
   // I need to copy starting at the bottom because 
   // otherwise I end up writing over myself
-  for(int iRow = rowCount-1;iRow > 0;iRow--)
+  for(byte iRow = rowCount-1;iRow > 0;iRow--)
   {
     rain[iRow] = rain[iRow-1];
   }
@@ -137,9 +144,9 @@ void animateRain()
   seedDrop();
   //printRainState();
 
-  for (int iRow = 0;iRow < rowCount;iRow++)  
+  for (byte iRow = 0;iRow < rowCount;iRow++)  
   {
-    for(int iColumn = 0;iColumn < 8;iColumn++)
+    for(byte iColumn = 0;iColumn < 8;iColumn++)
     {
       byte currentPixel;
       // if it's an odd column we're dripping down
@@ -148,7 +155,7 @@ void animateRain()
         currentPixel = iRow +  iColumn * rowCount;
         if (bitRead(rain[iRow], iColumn))
         {
-          setHSV(currentPixel, 0, 0, 255);
+          strip.setPixelColor(currentPixel, 255, 255, 255);
           //setHSV(currentPixel, 0, 0, 255/((iColumn*3)+1));
         }
         else
@@ -159,7 +166,7 @@ void animateRain()
       {
         currentPixel = iRow +  iColumn * rowCount;
         if (bitRead(rain[rowCount-1-iRow], iColumn))
-          setHSV(currentPixel, 0, 0, 255);
+          strip.setPixelColor(currentPixel, 255, 255, 255);
         else
           strip.setPixelColor(currentPixel, 0, 0, 0);
       }
@@ -168,21 +175,6 @@ void animateRain()
   strip.show();
   delay(50);
 }
-
-/*
-void printRainState()
-{
-  for(int iRow = 0;iRow<rowCount;iRow++)
-  {
-    for(int iColumn = 0;iColumn < 8;iColumn++)
-    {
-      Serial.print(bitRead(rain[iRow],iColumn));
-    }
-    println();
-  }
-  Serial.println();
-}
-*/
 
 void calm(bool isDay)
 {
@@ -240,7 +232,7 @@ void storm()
   
   if (inLightning)
   {
-    for(int i = 0;i<128;i++)
+    for(byte i = 0;i<128;i++)
     {
       flicker(240, 128);
       strip.show();
@@ -281,7 +273,7 @@ void sunset()
   int hue = 45;
   //print("sunset ");print(hue);println();
   const byte delayTime = 30;
-  for(int i = 0;i<=255;i++)
+  for(byte i = 0;i<=255;i++)
   {
     if (i % 5 == 0)
       hue = sunsetHue(hue);
@@ -291,7 +283,7 @@ void sunset()
     strip.show();
     delay(delayTime);
   }
-  for(int i = 128;i>=20;i--)
+  for(byte i = 128;i>=20;i--)
   {
     if (i % 1 == 0)
       hue = sunsetHue(hue);
@@ -309,7 +301,7 @@ void sunrise()
   int hue = 45;
   //print("begin sunrise ");print(hue);println();
   const byte delayTime = 30;
-  for(int i = 20;i<=128;i++)
+  for(byte i = 20;i<=128;i++)
   {
     if (i % 1 == 0)
       hue = sunriseHue(hue);
@@ -370,7 +362,7 @@ void rainbowLoop() {              //-m3-LOOP HSV RAINBOW
   currentFrame++;
   //print(currentFrame);println();
   
-  for (int pixel = 0;pixel < ledCount;pixel++)
+  for (byte pixel = 0;pixel < ledCount;pixel++)
   {
     hue += 360/ledCount;
     if (hue > 360)
@@ -388,7 +380,7 @@ void rainbowLoop() {              //-m3-LOOP HSV RAINBOW
 
 void setAllColor(byte r, byte g, byte b)
 {
-  for (int i = 0; i< ledCount;i++)
+  for (byte i = 0; i< ledCount;i++)
   {
     strip.setPixelColor(i, r, g, b);
   }
@@ -396,7 +388,7 @@ void setAllColor(byte r, byte g, byte b)
 
 void setAllHSV(unsigned int  h, byte  s, byte  v)
 {
-  for (int i = 0; i< ledCount;i++)
+  for (byte i = 0; i< ledCount;i++)
   {
     setHSV(i, h, s, v);
   }
@@ -408,7 +400,7 @@ void flicker(int thishue, int thissat) {            //-m9-FLICKER EFFECT
   int random_bool = random(0,random_bright);
   if (random_bool < 10) {
     delay(random_delay);
-    for(int i = 0 ; i < ledCount; i++ ) {
+    for(byte i = 0 ; i < ledCount; i++ ) {
       setHSV(i, thishue, thissat, random_bright); 
     }
   }
@@ -463,50 +455,3 @@ void setHSV(int led, unsigned int hue, byte sat, byte val)
         strip.setPixelColor(led, r, g, b);
 }
 
-// Fill the dots one after the other with a color
-void colorWipe(uint32_t c, uint8_t wait) {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
-      strip.setPixelColor(i, c);
-      strip.show();
-      delay(wait);
-  }
-}
-
-void rainbow(uint8_t wait) {
-  uint16_t i, j;
-
-  for(j=0; j<256; j++) {
-    for(i=0; i<strip.numPixels(); i++) {
-      strip.setPixelColor(i, Wheel((i+j) & 255));
-    }
-    strip.show();
-    delay(wait);
-  }
-}
-
-// Slightly different, this makes the rainbow equally distributed throughout
-void rainbowCycle(uint8_t wait) {
-  uint16_t i, j;
-
-  for(j=0; j<256*5; j++) { // 5 cycles of all colors on wheel
-    for(i=0; i< strip.numPixels(); i++) {
-      strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
-    }
-    strip.show();
-    delay(wait);
-  }
-}
-
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t Wheel(byte WheelPos) {
-  if(WheelPos < 85) {
-   return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-  } else if(WheelPos < 170) {
-   WheelPos -= 85;
-   return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
-  } else {
-   WheelPos -= 170;
-   return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
-  }
-} 
